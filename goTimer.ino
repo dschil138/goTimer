@@ -13,7 +13,7 @@ U8GLIB_SSD1306_128X64 u8g2(U8G_I2C_OPT_NONE | U8G_I2C_OPT_DEV_0);
 
 #define CLK2 10
 #define DT2 11
-#define SW2 3
+#define SW2 12
 
 Countimer timer1;
 Countimer timer2;
@@ -21,9 +21,6 @@ Countimer timerBy1;
 Countimer timerBy2;
 
 char buffer[10];
-char buffer2[1];
-
-bool changePeriods = false;
 
 int button1 = 7;
 int button3 = 5;
@@ -58,9 +55,9 @@ int buttonState1 = 0;
 int buttonState2 = 0;
 int buttonState3 = 0;
 
-int selectTime = 10;
-int selectTime2 = 10;
-int byoYomiTime = 10;
+int selectTime = 600;
+int selectTime2 = 600;
+int byoYomiTime = 30;
 
 int byoYomiTimeSelectCounter = 1;
 int settingsCounter = 1;
@@ -69,17 +66,6 @@ int currentStateCLK;
 int lastStateCLK;
 int currentStateCLK2;
 int lastStateCLK2;
-
-int periodsCounter = 5;
-int spaces;
-int lineLength;
-int startLine1;
-int startLine2;
-int startLine3;
-int startLine4;
-int startLine5;
-
-int pauseCounter = 0;
 
 void TCA9548A(uint8_t bus){
   Wire.beginTransmission(0x70);  // TCA9548A address
@@ -114,7 +100,6 @@ void setup() {
   pinMode(SW2, INPUT_PULLUP);
 
   attachInterrupt(digitalPinToInterrupt(2), playerSwitch, CHANGE);
-  attachInterrupt(digitalPinToInterrupt(3), decideByoYomiPeriods, RISING);
 
   digitalWrite(buzzer, HIGH);
 
@@ -130,9 +115,6 @@ void setup() {
 
   u8g.setFont(u8g_font_fub35n);
   u8g2.setFont(u8g_font_fub35n);
-  byoYomiLines(periodsCounter);
-  byoYomiIncrementer1 = periodsCounter;
-  byoYomiIncrementer2 = periodsCounter;
 }
 
 
@@ -156,8 +138,7 @@ void loop() {
     currentStateCLK = digitalRead(CLK);  
     currentStateCLK2 = digitalRead(CLK2); 
 
-    if (currentStateCLK != lastStateCLK  && currentStateCLK == 1) {
-      
+    if (currentStateCLK != lastStateCLK  && currentStateCLK == 1){
       if (digitalRead(DT) != currentStateCLK) {
         selectTime += 30;
       } else {
@@ -172,21 +153,18 @@ void loop() {
 
     lastStateCLK = currentStateCLK;
 
-    if ((currentStateCLK2 != lastStateCLK2  && currentStateCLK2 == 1) || changePeriods == true){
-      if (changePeriods == false) {
-        if (digitalRead(DT2) != currentStateCLK2) {
-          byoYomiTime += 1;
-        } else {
-          byoYomiTime -= 1;
-        }
+    if (currentStateCLK2 != lastStateCLK2  && currentStateCLK2 == 1){
+      if (digitalRead(DT2) != currentStateCLK2) {
+        byoYomiTime += 1;
+      } else {
+        byoYomiTime -= 1;
       }
       u8g2.firstPage();
       do {
         displaySelectingTime(byoYomiTime, 2);
       } while (u8g2.nextPage());
     }
-    
-    changePeriods = false;
+
     lastStateCLK2 = currentStateCLK2;
   
     if (buttonState1 == LOW) {
