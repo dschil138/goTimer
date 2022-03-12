@@ -222,7 +222,17 @@ void bzzz(void) {
   do {
     u8g2.drawStr(0, 40, "BZ");
   } while (u8g2.nextPage());
-   
+}
+
+
+
+
+void pauseTimer () {
+  newPause = millis();
+  if ((newPause - lastPause) > 600) {
+    pauseCounter++;  
+    lastPause = newPause;     
+  } 
 }
 
 

@@ -22,7 +22,7 @@ Countimer timerBy2;
 
 char buffer[10];
 
-int button1 = 7;
+int button1 = 3;
 int button3 = 5;
 
 const int buzzer = 9;
@@ -39,7 +39,7 @@ int timeSecondsBy = 6;
 int timeMinutesBy = 0;
 int timeHoursBy = 0;
 
-
+int pauseCounter = 0;
 int playerSwitchCounter = 1;
 int byoYomiCounter1 = 0;
 int byoYomiCounter2 = 0;
@@ -66,6 +66,8 @@ int currentStateCLK;
 int lastStateCLK;
 int currentStateCLK2;
 int lastStateCLK2;
+unsigned long newPause = 0;
+unsigned long lastPause = 0;
 
 void TCA9548A(uint8_t bus){
   Wire.beginTransmission(0x70);  // TCA9548A address
@@ -100,6 +102,7 @@ void setup() {
   pinMode(SW2, INPUT_PULLUP);
 
   attachInterrupt(digitalPinToInterrupt(2), playerSwitch, CHANGE);
+  attachInterrupt(digitalPinToInterrupt(3), pauseTimer, RISING);
 
   digitalWrite(buzzer, HIGH);
 
@@ -112,6 +115,8 @@ void setup() {
   lastByStart2 = millis();
   newStart1 = millis();
   newStart2 = millis();
+  lastPause = millis();
+  newPause = millis();
 
   u8g.setFont(u8g_font_fub35n);
   u8g2.setFont(u8g_font_fub35n);
@@ -180,57 +185,65 @@ void loop() {
       timer1.setInterval(refreshClock1, 850);
       timer2.setInterval(refreshClock2, 850);
       settingsCounter++;
+      pauseCounter++;
     }
   }  
 //------------------------------------------------ END WHILE LOOP ---------------------------------------------------------------------------------------
   while (gameEndCounter == 0) {
+
+    if ((pauseCounter % 2) == 0) {
+
     
-    if (playerSwitchCounter % 2 != 0) {
-      if (byoYomiCounter1 < 1){
-        timer1.run();
-        if (!timer1.isCounterCompleted()) {
-          timer1.start();
+      if (playerSwitchCounter % 2 != 0) {
+        if (byoYomiCounter1 < 1){
+          timer1.run();
+          if (!timer1.isCounterCompleted()) {
+            timer1.start();
+          }
+        }
+  
+     
+        if (byoYomiCounter1 >= 1) {        
+          newStart1 = millis();    
+          if ((newStart1 - lastByStart1) > 600) {
+            setupByoYomiTimer1();       
+          }
+          lastByStart1 = millis();
+          timerBy1.run();
+          timerBy1.start();   
+          Serial.println(F("Byo Yomi 1 Running"));                  
         }
       }
-
-   
-      if (byoYomiCounter1 >= 1) {        
-        newStart1 = millis();    
-        if ((newStart1 - lastByStart1) > 600) {
-          setupByoYomiTimer1();       
-        }
-        lastByStart1 = millis();
-        timerBy1.run();
-        timerBy1.start();   
-        Serial.println(F("Byo Yomi 1 Running"));                  
-      }
-    }
-
-
-
+  
+  
   
     
-    
-    if (playerSwitchCounter % 2 == 0) {
-      if (byoYomiCounter2 < 1){
-        timer2.run();
-        if (!timer2.isCounterCompleted()) {
-          timer2.start();
-        }
-      }
-
       
-      if (byoYomiCounter2 >= 1) {  
-        newStart2 = millis(); 
-        if ((newStart2 - lastByStart2) > 600) {
-          setupByoYomiTimer2();           
+      
+      if (playerSwitchCounter % 2 == 0) {
+        if (byoYomiCounter2 < 1){
+          timer2.run();
+          if (!timer2.isCounterCompleted()) {
+            timer2.start();
+          }
         }
-        lastByStart2 = millis();
-        timerBy2.run();
-        timerBy2.start();   
-        Serial.println(F("Byo Yomi 2 Running"));                 
+  
+        
+        if (byoYomiCounter2 >= 1) {  
+          newStart2 = millis(); 
+          if ((newStart2 - lastByStart2) > 600) {
+            setupByoYomiTimer2();           
+          }
+          lastByStart2 = millis();
+          timerBy2.run();
+          timerBy2.start();   
+          Serial.println(F("Byo Yomi 2 Running"));                 
+        }
       }
-    }  
+    }
+    else {
+      Serial.println("paused");
+    }      
   } 
   bzzz;
 }
