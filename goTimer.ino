@@ -11,9 +11,9 @@ U8GLIB_SSD1306_128X64 u8g2(U8G_I2C_OPT_NONE | U8G_I2C_OPT_DEV_0);
 #define DT A2
 #define SW A3
 
-#define CLK2 10
-#define DT2 11
-#define SW2 12
+#define CLK2 10  //10 for breadboad, ? for case
+#define DT2 11   //11 for breadboad, ? for case
+#define SW2 12   //12 for breadboad, ? for case
 
 Countimer timer1;
 Countimer timer2;
@@ -21,9 +21,10 @@ Countimer timerBy1;
 Countimer timerBy2;
 
 char buffer[10];
+char buffer2[1];
 
 int button1 = 3;
-int button3 = 5;
+int rockerSwitch = 2;
 
 const int buzzer = 9;
 
@@ -55,9 +56,9 @@ int buttonState1 = 0;
 int buttonState2 = 0;
 int buttonState3 = 0;
 
-int selectTime = 600;
-int selectTime2 = 600;
-int byoYomiTime = 30;
+int selectTime = 5; //600
+int selectTime2 = 10; //600
+int byoYomiTime = 6; //30
 
 int byoYomiTimeSelectCounter = 1;
 int settingsCounter = 1;
@@ -66,8 +67,24 @@ int currentStateCLK;
 int lastStateCLK;
 int currentStateCLK2;
 int lastStateCLK2;
+int currentEncoder2ButtonState;
 unsigned long newPause = 0;
 unsigned long lastPause = 0;
+
+bool changePeriods;
+int periodsCounter = 5;
+int periodsPlayer1;
+int periodsPlayer2;
+int periodsSelector = 3;
+int spaces;
+int totalSpace;
+int lengthOfASpace;
+int lineLength;
+int startLine1;
+int startLine2;
+int startLine3;
+int startLine4;
+int startLine5;
 
 void TCA9548A(uint8_t bus){
   Wire.beginTransmission(0x70);  // TCA9548A address
@@ -89,8 +106,7 @@ void TCA9548A(uint8_t bus){
 void setup() {
   Serial.begin(9600);
   pinMode(button1, INPUT_PULLUP);
-  //pinMode(button2, INPUT_PULLUP);
-  pinMode(button3, INPUT_PULLUP);
+  pinMode(rockerSwitch, INPUT_PULLUP);
   pinMode(buzzer, OUTPUT);
   
   pinMode(CLK,INPUT);
@@ -136,14 +152,15 @@ void setup() {
 ////////////////////////////////////////////////// ---- LOOP ---- ///////////////////////////////////////////////////////////////////////////
 void loop() {
 
-//------------------------------------------------ START WHILE LOOP --------------------------------------------------------------------------
+//------------------------------------------------ START WHILE LOOP - CHOOSING SETTINGS --------------------------------------------------------------------------
   while(settingsCounter == 1){
 
     buttonState1 = digitalRead(button1);   
     currentStateCLK = digitalRead(CLK);  
-    currentStateCLK2 = digitalRead(CLK2); 
+    currentStateCLK2 = digitalRead(CLK2);
+    currentEncoder2ButtonState = digitalRead(SW2);
 
-    if (currentStateCLK != lastStateCLK  && currentStateCLK == 1){
+    if (currentStateCLK != lastStateCLK  && currentStateCLK == 1){ //ENCODER 1 CHOOSES MAIN TIME
       if (digitalRead(DT) != currentStateCLK) {
         selectTime += 30;
       } else {
@@ -154,11 +171,11 @@ void loop() {
       do {
         displaySelectingTime(selectTime, 7);
       } while (u8g.nextPage());
-     }
+    }
 
     lastStateCLK = currentStateCLK;
 
-    if (currentStateCLK2 != lastStateCLK2  && currentStateCLK2 == 1){
+    if (currentStateCLK2 != lastStateCLK2  && currentStateCLK2 == 1){ // ENCODER 2 CHOOSES BYO YOMI TIME
       if (digitalRead(DT2) != currentStateCLK2) {
         byoYomiTime += 1;
       } else {
@@ -171,8 +188,16 @@ void loop() {
     }
 
     lastStateCLK2 = currentStateCLK2;
+
+    if (currentEncoder2ButtonState == LOW){
+      decideByoYomiPeriods(); 
+      u8g2.firstPage();
+      do {
+        displaySelectingTime(byoYomiTime, 2);
+      } while (u8g2.nextPage());
+      }
   
-    if (buttonState1 == LOW) {
+    if (buttonState1 == LOW) { // HITTING START/PAUSE BUTTON INITIATES ALL THE CLOCKS AND MOVES TO GAME MODE
       int startingPlayer = digitalRead(2);
       if (startingPlayer == LOW) {
         playerSwitchCounter = 2;
@@ -184,18 +209,21 @@ void loop() {
       timer2.setCounter(timeHours2, timeMinutes2, timeSeconds2, timer2.COUNT_DOWN, startByoYomi2);
       timer1.setInterval(refreshClock1, 850);
       timer2.setInterval(refreshClock2, 850);
+      periodsPlayer1 = periodsCounter + 1;
+      periodsPlayer2 = periodsCounter + 1;
       settingsCounter++;
       pauseCounter++;
     }
   }  
-//------------------------------------------------ END WHILE LOOP ---------------------------------------------------------------------------------------
+//------------------------------------------------ END: SETINGS MODE ---------------------------------------------------------------------------------------
+//------------------------------------------------ BEGIN: GAME MODE ---------------------------------------------------------------------------------------
   while (gameEndCounter == 0) {
 
     if ((pauseCounter % 2) == 0) {
 
     
-      if (playerSwitchCounter % 2 != 0) {
-        if (byoYomiCounter1 < 1){
+      if (playerSwitchCounter % 2 != 0) {  // CONTROLLING PLAYER 1 CLOCK
+        if (periodsPlayer1 > periodsCounter){
           timer1.run();
           if (!timer1.isCounterCompleted()) {
             timer1.start();
@@ -203,10 +231,10 @@ void loop() {
         }
   
      
-        if (byoYomiCounter1 >= 1) {        
+        if (periodsPlayer1 <= periodsCounter) {        
           newStart1 = millis();    
-          if ((newStart1 - lastByStart1) > 600) {
-            setupByoYomiTimer1();       
+          if ((newStart1 - lastByStart1) > 600) {  
+            setupByoYomiTimer1();                  //resets Byo Yomi clock at beginning of each turn
           }
           lastByStart1 = millis();
           timerBy1.run();
@@ -220,7 +248,7 @@ void loop() {
     
       
       
-      if (playerSwitchCounter % 2 == 0) {
+      if (playerSwitchCounter % 2 == 0) {    // CONTROLLING PLAYER 2 CLOCK
         if (byoYomiCounter2 < 1){
           timer2.run();
           if (!timer2.isCounterCompleted()) {
@@ -229,10 +257,10 @@ void loop() {
         }
   
         
-        if (byoYomiCounter2 >= 1) {  
+        if (periodsPlayer2 <= periodsCounter) {  
           newStart2 = millis(); 
           if ((newStart2 - lastByStart2) > 600) {
-            setupByoYomiTimer2();           
+            setupByoYomiTimer2();                  //resets Byo Yomi clock at beginning of each turn
           }
           lastByStart2 = millis();
           timerBy2.run();
