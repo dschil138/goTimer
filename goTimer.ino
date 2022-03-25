@@ -1,4 +1,4 @@
-
+#include <EEPROM.h>
 #include "Countimer.h"
 #include <Wire.h>
 #include "U8glib.h" 
@@ -7,24 +7,27 @@
 U8GLIB_SSD1306_128X64 u8g(U8G_I2C_OPT_NONE | U8G_I2C_OPT_DEV_0);
 U8GLIB_SSD1306_128X64 u8g2(U8G_I2C_OPT_NONE | U8G_I2C_OPT_DEV_0);
 
-#define CLK A1
-#define DT A2
-#define SW A3
+#define CLK 11  //10 for breadboad, 11 for case
+#define DT 12   //11 for breadboad, 12 for case
+#define SW 10   //12 for breadboad, 10 for case
 
-#define CLK2 10  //10 for breadboad, ? for case
-#define DT2 11   //11 for breadboad, ? for case
-#define SW2 12   //12 for breadboad, ? for case
+#define CLK2 A1
+#define DT2 A2
+#define SW2 A3
 
 Countimer timer1;
 Countimer timer2;
 Countimer timerBy1;
 Countimer timerBy2;
 
+int eepMainTime;
+int eepBYTime;
+
 char buffer[10];
 char buffer2[1];
 
-int button1 = 3;
-int rockerSwitch = 2;
+int button1 = 2;
+int rockerSwitch = 3;
 
 const int buzzer = 9;
 
@@ -51,14 +54,16 @@ unsigned long lastByStart1 = 0;
 unsigned long lastByStart2 = 0;
 unsigned long newStart1 = 0;
 unsigned long newStart2 = 0;
+unsigned long lastBeep = 0;
+unsigned long newBeep = 0;
 
 int buttonState1 = 0;
 int buttonState2 = 0;
 int buttonState3 = 0;
 
-int selectTime = 5; //600
-int selectTime2 = 10; //600
-int byoYomiTime = 6; //30
+int selectTime = EEPROM.read(10)*30; //600, 5 for testing
+int selectTime2 = EEPROM.read(10)*30; //600, 5 for testing
+int byoYomiTime = EEPROM.read(20); //30, 3 for testing
 
 int byoYomiTimeSelectCounter = 1;
 int settingsCounter = 1;
@@ -72,7 +77,7 @@ unsigned long newPause = 0;
 unsigned long lastPause = 0;
 
 bool changePeriods;
-int periodsCounter = 5;
+int periodsCounter = EEPROM.read(30);
 int periodsPlayer1;
 int periodsPlayer2;
 int periodsSelector = 3;
@@ -108,7 +113,6 @@ void setup() {
   pinMode(button1, INPUT_PULLUP);
   pinMode(rockerSwitch, INPUT_PULLUP);
   pinMode(buzzer, OUTPUT);
-  
   pinMode(CLK,INPUT);
   pinMode(DT,INPUT);
   pinMode(SW, INPUT_PULLUP);
@@ -117,8 +121,8 @@ void setup() {
   pinMode(DT2,INPUT);
   pinMode(SW2, INPUT_PULLUP);
 
-  attachInterrupt(digitalPinToInterrupt(2), playerSwitch, CHANGE);
-  attachInterrupt(digitalPinToInterrupt(3), pauseTimer, RISING);
+  attachInterrupt(digitalPinToInterrupt(rockerSwitch), playerSwitch, CHANGE); //2 for breadboard, 3 for case
+  attachInterrupt(digitalPinToInterrupt(button1), pauseTimer, RISING);   //3 for breadboard, 2 for case
 
   digitalWrite(buzzer, HIGH);
 
@@ -137,7 +141,6 @@ void setup() {
   u8g.setFont(u8g_font_fub35n);
   u8g2.setFont(u8g_font_fub35n);
 }
-
 
 
 
@@ -198,6 +201,13 @@ void loop() {
       }
   
     if (buttonState1 == LOW) { // HITTING START/PAUSE BUTTON INITIATES ALL THE CLOCKS AND MOVES TO GAME MODE
+      int currentEncoder1ButtonState = digitalRead(SW);
+      if (currentEncoder1ButtonState == LOW){
+        eepMainTime = selectTime/30;
+        EEPROM.write(10, eepMainTime);
+        EEPROM.write(20, byoYomiTime);
+        EEPROM.write(30, periodsCounter);
+        }
       int startingPlayer = digitalRead(2);
       if (startingPlayer == LOW) {
         playerSwitchCounter = 2;
@@ -213,6 +223,7 @@ void loop() {
       periodsPlayer2 = periodsCounter + 1;
       settingsCounter++;
       pauseCounter++;
+      
     }
   }  
 //------------------------------------------------ END: SETINGS MODE ---------------------------------------------------------------------------------------
@@ -238,7 +249,21 @@ void loop() {
           }
           lastByStart1 = millis();
           timerBy1.run();
-          timerBy1.start();   
+          timerBy1.start();  
+          if (timerBy1.getCurrentSeconds() == 5){
+            newBeep = millis();
+            if (newBeep - lastBeep > 1200) {
+              tone(buzzer, 1000); 
+              delay(100);      
+              noTone(buzzer);
+              delay(30);
+              tone(buzzer, 1000); 
+              delay(70);      
+              noTone(buzzer);
+              digitalWrite(buzzer, HIGH);
+              lastBeep = millis();
+            }
+          }
           Serial.println(F("Byo Yomi 1 Running"));                  
         }
       }
@@ -264,7 +289,21 @@ void loop() {
           }
           lastByStart2 = millis();
           timerBy2.run();
-          timerBy2.start();   
+          timerBy2.start();
+          if (timerBy2.getCurrentSeconds() == 5){
+            newBeep = millis();
+            if (newBeep - lastBeep > 1200) {
+              tone(buzzer, 1000); 
+              delay(100);      
+              noTone(buzzer);
+              delay(30);
+              tone(buzzer, 1000); 
+              delay(70);      
+              noTone(buzzer);
+              digitalWrite(buzzer, HIGH);
+              lastBeep = millis();
+            }
+          }  
           Serial.println(F("Byo Yomi 2 Running"));                 
         }
       }
@@ -273,5 +312,5 @@ void loop() {
       Serial.println("paused");
     }      
   } 
-  bzzz;
+  bzzz();
 }

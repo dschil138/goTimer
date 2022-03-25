@@ -183,11 +183,11 @@ void byoYomiLines (int periods) {
   startLine3 = (lineLength + lengthOfASpace) * 2;
   
   if (periods > 3) {
-    startLine4 = (lineLength + 8) * 3;
+    startLine4 = (lineLength + lengthOfASpace) * 3;
   }
   
   if (periods > 4) {
-    startLine5 = (lineLength + 8) * 4;
+    startLine5 = (lineLength + lengthOfASpace) * 4;
   }
 }
 
@@ -232,7 +232,7 @@ void startByoYomi1 () {
   Serial.println(F("startByoYomi 1"));
   delay(70);
   periodsPlayer1--;
-  tone(buzzer, 1000); 
+  tone(buzzer, 600); 
     delay(120);      
     noTone(buzzer);
     digitalWrite(buzzer, HIGH);
@@ -244,7 +244,7 @@ void startByoYomi1 () {
   Serial.println(F("startByoYomi 2"));
   delay(70);
   periodsPlayer2--;
-  tone(buzzer, 1000); 
+  tone(buzzer, 600); 
     delay(120);      
     noTone(buzzer);
     digitalWrite(buzzer, HIGH);
